@@ -214,7 +214,7 @@ class WanVideoLooper:
         valid_sequence = isinstance(model_clip_sequence, list)
         if not valid_sequence and model_clip_sequence is not None:
              _log("Warning: Connected 'model_clip_sequence' is not a valid list (likely bypassed). Ignoring.");
-              model_clip_sequence = None
+             model_clip_sequence = None
 
         all_frames_collected = []
         current_seed_image = start_image
