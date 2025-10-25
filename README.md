@@ -8,11 +8,23 @@ This pack contains two nodes:
 
 1.  **`WanVideo Looper`**: The main node that takes base models, a list of prompts, and various settings to generate a sequence of video clips, merging them seamlessly.
     
+<img width="299" height="641" alt="image" src="https://github.com/user-attachments/assets/2707f409-a254-4418-9656-4b2627d8c3f6" />
 
 ---
 
 2.  **`WanVideo Looper Lora Sequencer`**: A helper node designed to feed pre-patched Model and CLIP objects into the `WanVideo Looper` for specific segments, enabling per-segment LoRA application.
     
+<img width="307" height="373" alt="image" src="https://github.com/user-attachments/assets/74d0ab47-a6ef-4dd6-90bd-cb7902f66a3a" />
+
+---
+
+**Watch the Tutorial Video:**
+
+<a href="https://www.youtube.com/watch?v=jztckgdkCHc">
+  <img src="https://img.youtube.com/vi/jztckgdkCHc/maxresdefault.jpg" 
+       alt="Watch the tutorial video" 
+       width="480" height="270" border="0" />
+</a>
 
 ---
 
@@ -98,5 +110,6 @@ This helper node allows you to specify different, pre-patched Model and CLIP obj
     * `clip_1` to `clip_5`: The pre-patched CLIP model for each segment.
 * **Outputs**
     * `model_clip_sequence`: A list containing 5 tuples. Each tuple holds `(model_high, model_low, clip)` for the corresponding segment, or `None` if an input was not connected. This output connects directly to the `model_clip_sequence` input on the `WanVideo Looper`.
+
 
 ---
