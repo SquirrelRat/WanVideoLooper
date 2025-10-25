@@ -1,3 +1,7 @@
+
+<img width="353" height="347" alt="image" src="https://github.com/user-attachments/assets/69054332-b01e-4c54-a75b-7dc5cd683930" />
+
+
 # WanVideoLooper Nodes for ComfyUI
 
 This is a set of custom nodes for ComfyUI designed for generating sequential long video clips based on the Wan 2.2 model architecture, handling continuity between segments and offering advanced control over the sampling process, including per-segment LoRA/model application.
@@ -113,3 +117,4 @@ This helper node allows you to specify different, pre-patched Model and CLIP obj
 
 
 ---
+
