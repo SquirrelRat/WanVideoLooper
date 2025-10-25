@@ -1,8 +1,13 @@
 [project]
 name = "WanVideoLooper"
 description = "This is a set of custom nodes for ComfyUI designed for generating sequential long video clips based on the Wan 2.2 model architecture, handling continuity between segments and offering advanced control over the sampling process"
-version = "1.0.0"
-license = {file = "LICENSE"} 
+version = "1.0.1"
+license = {file = "LICENSE"}
+dependencies = [
+    "color-match",
+    "numpy"
+]
+
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
 #     "Operating System :: OS Independent",
@@ -28,9 +33,9 @@ Documentation = "https://github.com/SquirrelRat/WanVideoLooper/wiki"
 "Bug Tracker" = "https://github.com/SquirrelRat/WanVideoLooper/issues"
 
 [tool.comfy]
-PublisherId = "SquirrelRat"
+PublisherId = "squirrelrat"
 DisplayName = "WanVideoLooper"
-Icon = "https://raw.githubusercontent.com/SquirrelRat/WanVideoLooper/refs/heads/main/icon.png"
+Icon = "https://raw.githubusercontent.com/SquirrelRat/WanVideoLooper/main/icon.png"
 includes = [] 
 # "requires-comfyui" = ">=1.0.0"  # ComfyUI version compatibility
 
