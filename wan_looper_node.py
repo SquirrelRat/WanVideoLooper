@@ -178,6 +178,7 @@ class WanVideoLooper:
                 "frame_merge": ("INT", {"default": 1, "min": 0, "max": 8, "step": 1, "tooltip": "Number of frames to overlap/merge between loops for smooth transitions."}),
                 "duration_sec": ("INT", {"default": 5, "min": 1, "max": 10, "step": 1, "tooltip": "Duration of each segment in seconds. 5s is recommended, max 10."}),
                 "color_match": ("BOOLEAN", {"default": False, "tooltip": "Apply color matching between segments internally using MKL method."}),
+                "color_match_lastframe": ("BOOLEAN", {"default": False, "tooltip": "If True, overrides segment-by-segment matching. Instead, matches all frames to the *very last* frame of the entire sequence."}),              
                 "color_match_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Strength of the internal color matching (1.0 = full match)."}),
                 "enable_dry_run": ("BOOLEAN", {"default": False, "tooltip": "If enabled, skips sampling and decoding to quickly check setup and logs."}),
             },
@@ -201,7 +202,7 @@ class WanVideoLooper:
         seed, steps, enable_motion_cfg, cfg_motion_step, cfg_high_noise, cfg_low_noise,
         sampler_name, scheduler, model_switch_point, sigma_shift, denoise,
         width, height, frame_merge, duration_sec, enable_dry_run,
-        color_match, color_match_strength,
+        color_match, color_match_strength, color_match_lastframe,
         clip_vision=None,
         model_clip_sequence=None,
         color_match_ref=None 
@@ -232,6 +233,9 @@ class WanVideoLooper:
         if color_match and not COLOR_MATCHER_AVAILABLE:
              _log("Warning: Internal color match enabled, but 'color-matcher' library is missing. Feature disabled.")
              color_match = False
+        if color_match and color_match_lastframe:
+             _log("'Last Frame' color match is enabled. Segment-by-segment matching will be skipped.")
+
 
         model_device, model_dtype = _get_model_device_info(base_model_high)
         cpu_device = torch.device("cpu")
@@ -338,7 +342,10 @@ class WanVideoLooper:
                     reference_for_this_loop = static_color_reference
                 elif i > 0 and previous_loop_last_frame is not None:
                     reference_for_this_loop = previous_loop_last_frame
-                if color_match and reference_for_this_loop is not None:
+                
+                # Only run segment matching if color_match is on AND color_match_lastframe is OFF
+                if color_match and not color_match_lastframe and reference_for_this_loop is not None:
+                    _log(f"Segment {i+1}: Applying segment-to-segment color match.")
                     decoded_image_batch = _apply_color_match(
                         target_batch_tensor=decoded_image_batch,
                         reference_tensor=reference_for_this_loop,
@@ -396,6 +403,26 @@ class WanVideoLooper:
                  consistent_batches.append(batch)
 
         final_batch = torch.cat(consistent_batches, dim=0)
+
+        # --- 4b. Final Frame Color Match (New Logic) ---
+        if color_match and color_match_lastframe and final_batch.shape[0] > 1:
+            _log(f"Applying 'Last Frame' color match using frame {final_batch.shape[0]-1} as reference.")
+            last_frame_reference = final_batch[-1:] 
+            
+            frames_to_match = final_batch[:-1]
+            
+            matched_frames = _apply_color_match(
+                target_batch_tensor=frames_to_match,
+                reference_tensor=last_frame_reference,
+                strength=color_match_strength
+            )
+            
+            final_batch = torch.cat([matched_frames, last_frame_reference], dim=0)
+            _log("'Last Frame' color match complete.")
+        elif color_match and color_match_lastframe:
+             _log("Warning: 'Last Frame' color match enabled, but not enough frames to perform match (<= 1).")
+
+
         last_frame = final_batch[-1:] if final_batch.shape[0] > 0 else torch.zeros((1, render_height, render_width, 3))
         log_message = "DRY RUN Finished" if enable_dry_run else "WanVideoLooper finished"
         _log(f"{log_message}. Total frames: {final_batch.shape[0]}")
