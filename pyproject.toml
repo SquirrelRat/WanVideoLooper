@@ -1,7 +1,7 @@
 [project]
 name = "WanVideoLooper"
 description = "This is a set of custom nodes for ComfyUI designed for generating sequential long video clips based on the Wan 2.2 model architecture, handling continuity between segments and offering advanced control over the sampling process"
-version = "1.0.6"
+version = "1.0.7"
 license = {file = "LICENSE"}
 dependencies = [
     "color-match",

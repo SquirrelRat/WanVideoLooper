@@ -111,7 +111,7 @@ def _prepare_latent_window(positive_cond, negative_cond, vae, width, height, fra
     return positive_cond, negative_cond, {"samples": empty_latent}
 
 # ====================================================================================================
-# NEW Color Match Helper
+# Color Match Helper
 # ====================================================================================================
 def _apply_color_match(target_batch_tensor, reference_tensor, strength=1.0):
     """Applies MKL color matching from reference to target batch."""
@@ -131,6 +131,8 @@ def _apply_color_match(target_batch_tensor, reference_tensor, strength=1.0):
     cm = ColorMatcher()
 
     for i in range(batch_size):
+        if (i + 1) % 25 == 0 or i == 0: # Log every 25 frames
+         _log(f"Color matching frame {i+1}/{batch_size}...")
         try:
             target_img = target_np[i]
             transfer_result = cm.transfer(src=target_img, ref=ref_np, method='mkl')
@@ -389,20 +391,16 @@ class WanVideoLooper:
         # --- 4. Finalize & Return ---
         if not all_frames_collected:
             _log("Error: No frames were collected."); return (torch.zeros((1, 64, 64, 3)),)*2
-        _log("Concatenating final video batch.")
-        num_channels = all_frames_collected[0].shape[-1]
-        consistent_batches = []
-        for batch in all_frames_collected:
-             if batch.shape[-1] == num_channels: consistent_batches.append(batch)
-             else:
-                 _log(f"Warning: Channel mismatch found (Expected {num_channels}, Got {batch.shape[-1]}). Adjusting batch.")
-                 if batch.shape[-1] == 1 and num_channels == 3: batch = batch.repeat(1, 1, 1, 3)
-                 elif batch.shape[-1] == 4 and num_channels == 3: batch = batch[:, :, :, :3]
-                 elif batch.shape[-1] == 3 and num_channels == 4: alpha = torch.ones_like(batch[:, :, :, :1]); batch = torch.cat([batch, alpha], dim=-1)
-                 else: batch = torch.zeros((batch.shape[0], batch.shape[1], batch.shape[2], num_channels), dtype=batch.dtype)
-                 consistent_batches.append(batch)
 
-        final_batch = torch.cat(consistent_batches, dim=0)
+        _log("Concatenating final video batch...")
+        try:
+            final_batch = torch.cat(all_frames_collected, dim=0)
+            
+        except RuntimeError as e:
+            _log(f"CRITICAL ERROR: Failed to concatenate final batch. This may be a channel/shape mismatch between segments. {e}")
+            _log("This should not happen if the VAE is consistent. Please report this error.")
+            _log("Returning a dummy tensor to prevent a crash.")
+            return (torch.zeros((1, 64, 64, 3)),)*2
 
         # --- 4b. Final Frame Color Match (New Logic) ---
         if color_match and color_match_lastframe and final_batch.shape[0] > 1:
