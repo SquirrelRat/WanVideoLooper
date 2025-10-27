@@ -18,11 +18,11 @@ class WanVideoLoraSequencer:
     @classmethod
     def INPUT_TYPES(s):
         inputs = {"optional": {}}
-        for i in range(1, 6):
+        for i in range(1, 11): 
             inputs["optional"][f"model_high_{i}"] = ("MODEL", {"tooltip": f"Patched HIGH model for segment {i}."})
-        for i in range(1, 6):
+        for i in range(1, 11):
             inputs["optional"][f"model_low_{i}"] = ("MODEL", {"tooltip": f"Patched LOW model for segment {i}."})
-        for i in range(1, 6):
+        for i in range(1, 11):
             inputs["optional"][f"clip_{i}"] = ("CLIP", {"tooltip": f"Patched CLIP model for segment {i}."})
         return inputs
 
@@ -34,7 +34,7 @@ class WanVideoLoraSequencer:
     def sequence_models_clips(self, **kwargs):
         """Creates a list of tuples, each containing models/clip for a segment."""
         model_clip_sequence = []
-        for i in range(1, 6):
+        for i in range(1, 11):
             model_high = kwargs.get(f"model_high_{i}", None)
             model_low = kwargs.get(f"model_low_{i}", None)
             clip = kwargs.get(f"clip_{i}", None)
