@@ -1,4 +1,4 @@
-import json
+
 
 # ====================================================================================================
 # Logging Utility
@@ -21,7 +21,7 @@ class WanVideoLooperPrompts:
             "required": {
                 "prompts": ("STRING", {"multiline": True, "default": "", "tooltip": "Enter one positive prompt per line. Empty lines are ignored."}),
                 "negative_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Enter the global negative prompt."}),
-                "enable_prefix_suffix": (["true", "false"], {"default": "true", "tooltip": "Enable the prefix and suffix string."}),
+                "enable_prefix_suffix": ("BOOLEAN", {"default": True, "tooltip": "Enable the prefix and suffix string."}),
                 "prefix": ("STRING", {"default": "", "tooltip": "Text to add BEFORE each prompt line (positive and negative)."}),
                 "suffix": ("STRING", {"default": "", "tooltip": "Text to add AFTER each prompt line (positive and negative)."}),
             }
@@ -40,7 +40,7 @@ class WanVideoLooperPrompts:
         if not prompt_text:
             return ""
 
-        is_prefix_suffix_enabled = (enable_prefix_suffix == "true")
+        is_prefix_suffix_enabled = enable_prefix_suffix
 
         prefix_text = prefix.strip() if is_prefix_suffix_enabled else ""
         suffix_text = suffix.strip() if is_prefix_suffix_enabled else ""
