@@ -287,27 +287,34 @@ def _apply_color_match(target_batch_tensor, reference_tensor, strength=1.0, meth
         return target_batch_tensor
 
     _log(f"Applying internal color match (strength: {strength:.2f}) using {method} method on GPU.")
-    
+
+    original_device = target_batch_tensor.device
+    gpu_device = comfy.model_management.intermediate_device()
+
+    # Move tensors to GPU for processing
+    target_gpu = target_batch_tensor.to(gpu_device)
+    ref_gpu = reference_tensor.to(gpu_device)
+
     # Ensure tensors are in (B, C, H, W) format
-    if target_batch_tensor.dim() == 4 and target_batch_tensor.shape[-1] == 3:
-        target_batch_tensor = target_batch_tensor.permute(0, 3, 1, 2)
-    if reference_tensor.dim() == 4 and reference_tensor.shape[-1] == 3:
-        reference_tensor = reference_tensor.permute(0, 3, 1, 2)
+    if target_gpu.dim() == 4 and target_gpu.shape[-1] == 3:
+        target_gpu = target_gpu.permute(0, 3, 1, 2)
+    if ref_gpu.dim() == 4 and ref_gpu.shape[-1] == 3:
+        ref_gpu = ref_gpu.permute(0, 3, 1, 2)
 
     if method == "MKL":
-        matched_batch = _gpu_mkl_color_transfer(target_batch_tensor, reference_tensor)
-    else: # Default to Reinhard
-        matched_batch = _reinhard_color_transfer(target_batch_tensor, reference_tensor)
-    
-    # Blend the original and color-matched images
-    final_result = target_batch_tensor + strength * (matched_batch - target_batch_tensor)
+        matched_batch = _gpu_mkl_color_transfer(target_gpu, ref_gpu)
+    else:  # Default to Reinhard
+        matched_batch = _reinhard_color_transfer(target_gpu, ref_gpu)
+
+    # Blend the original and color-matched images on the GPU
+    final_result = target_gpu + strength * (matched_batch - target_gpu)
     final_result = torch.clamp(final_result, 0.0, 1.0)
 
     # Permute back to (B, H, W, C)
     if final_result.dim() == 4 and final_result.shape[1] == 3:
         final_result = final_result.permute(0, 2, 3, 1)
 
-    return final_result
+    return final_result.to(original_device)
 
 
 # ====================================================================================================
@@ -536,13 +543,18 @@ class WanVideoLooper:
                 
                 # Only run segment matching if color_match is on AND color_match_lastframe is OFF
                 if color_match_method != "Disabled" and color_match_reference_frame == "Sequential" and reference_for_this_loop is not None:
-                    _log(f"Segment {i+1}: Applying segment-to-segment color match.")
-                    decoded_image_batch = _apply_color_match(
-                        target_batch_tensor=decoded_image_batch,
+                    _log(f"Segment {i+1}: Applying segment-to-segment color match to the first frame.")
+                    first_frame = decoded_image_batch[0:1]
+                    rest_of_frames = decoded_image_batch[1:]
+                    
+                    matched_first_frame = _apply_color_match(
+                        target_batch_tensor=first_frame,
                         reference_tensor=reference_for_this_loop,
                         strength=color_match_strength,
                         method=color_match_method
                     )
+                    
+                    decoded_image_batch = torch.cat([matched_first_frame, rest_of_frames], dim=0)
 
                 previous_loop_last_frame = next_reference_frame
             else:
