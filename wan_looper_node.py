@@ -96,7 +96,7 @@ def _prepare_latent_window(positive_cond, negative_cond, vae, width, height, fra
     device = comfy.model_management.intermediate_device()
     latent_height = height // 8; latent_width = width // 8; time_dim = (frame_count + 3) // 4
     target_shape = [batch_size, 16, time_dim, latent_height, latent_width]
-    
+
     if pre_allocated_latent is not None and pre_allocated_latent.shape == torch.Size(target_shape) and pre_allocated_latent.device == device:
         empty_latent = pre_allocated_latent.zero_()
     else:
@@ -133,7 +133,7 @@ def _rgb_to_xyz(rgb):
         [0.212671, 0.715160, 0.072169],
         [0.019334, 0.119193, 0.950227]
     ], device=rgb.device, dtype=rgb.dtype)
-    
+
     if rgb.dim() == 3:
         h, w = rgb.shape[1:]
         xyz = torch.matmul(M, rgb.view(3, -1)).view(3, h, w)
@@ -378,7 +378,7 @@ class WanVideoLooper:
         color_match_strength, color_match_method, color_match_reference_frame,
         clip_vision=None,
         model_clip_sequence=None,
-        color_match_ref=None 
+        color_match_ref=None
     ):
 
         # --- 1. Validation & Initial Setup ---
@@ -505,12 +505,19 @@ class WanVideoLooper:
                 else:
                     high_noise_latent = _run_sampler_step(loop_model_high, current_seed, total_steps, cfg_noise, sampler_name, scheduler, loop_positive_cond, loop_negative_cond, latent_on_gpu, denoise, disable_noise=False, start_step=0, last_step=switch_step_index, force_full_denoise=False)
 
+                # GGUF Fix: Synchronize and clean GPU state before LOW noise sampler, needed for Wan22Blockswap
+                _log(f"Segment {i+1}: Synchronizing CUDA and clearing cache...")
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+                gc.collect()
+
                 _log(f"Segment {i+1}: Running LOW noise sampler (Steps {switch_step_index} to {total_steps}).")
                 final_latent = _run_sampler_step(loop_model_low, current_seed, total_steps, cfg_noise, sampler_name, scheduler, loop_positive_cond, loop_negative_cond, high_noise_latent, denoise, disable_noise=True, start_step=switch_step_index, last_step=total_steps, force_full_denoise=True)
                 _log(f"Segment {i+1}: Sampling finished.")
             else:
                 _log(f"Segment {i+1}: DRY RUN - Skipping HIGH noise sampler."); _log(f"Segment {i+1}: DRY RUN - Skipping LOW noise sampler.")
                 final_latent = latent_on_gpu; high_noise_latent = latent_on_gpu
+
 
             # --- 3e. Decode & Normalize OR Skip for Dry Run ---
             decoded_image_batch = None
@@ -540,20 +547,20 @@ class WanVideoLooper:
                     reference_for_this_loop = static_color_reference
                 elif i > 0 and previous_loop_last_frame is not None:
                     reference_for_this_loop = previous_loop_last_frame
-                
+
                 # Only run segment matching if color_match is on AND color_match_lastframe is OFF
                 if color_match_method != "Disabled" and color_match_reference_frame == "Sequential" and reference_for_this_loop is not None:
                     _log(f"Segment {i+1}: Applying segment-to-segment color match to the first frame.")
                     first_frame = decoded_image_batch[0:1]
                     rest_of_frames = decoded_image_batch[1:]
-                    
+
                     matched_first_frame = _apply_color_match(
                         target_batch_tensor=first_frame,
                         reference_tensor=reference_for_this_loop,
                         strength=color_match_strength,
                         method=color_match_method
                     )
-                    
+
                     decoded_image_batch = torch.cat([matched_first_frame, rest_of_frames], dim=0)
 
                 previous_loop_last_frame = next_reference_frame
@@ -587,7 +594,7 @@ class WanVideoLooper:
         _log("Concatenating final video batch...")
         try:
             final_batch = torch.cat(all_frames_collected, dim=0)
-            
+
         except RuntimeError as e:
             _log(f"CRITICAL ERROR: Failed to concatenate final batch. This may be a channel/shape mismatch between segments. {e}")
             _log("This should not happen if the VAE is consistent. Please report this error.")
